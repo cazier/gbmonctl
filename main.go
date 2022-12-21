@@ -28,6 +28,34 @@ type Property struct {
 	Value       uint16
 }
 
+func writeData(data []byte, dryrun *bool) int {
+	if *dryrun {
+		log.Println("Would have sent:\n" + hex.Dump(data))
+		return 0
+	}
+
+	err := hid.Init()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dev, err := hid.OpenFirst(0x0bda, 0x1100)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// TODO: get current value and nicely transition to the expected value like in
+	// TODO: read a value if "v" not specified, I think the value is in the byte
+	// 0xa of the response if we do a read
+	num, err := dev.Write(data)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Print("Property set.")
+	return num
+}
+
 func main() {
 	properties := []Property{
 		{
@@ -56,11 +84,11 @@ func main() {
 			Value:       0xe00b,
 		},
 		{
-			Name:  "kvm-switch",
+			Name:        "kvm-switch",
 			Description: "Switch KVM to device 0 or 1",
-			Min:   0,
-			Max:   1,
-			Value: 0xe069,
+			Min:         0,
+			Max:         1,
+			Value:       0xe069,
 		},
 		{
 			Name:        "colour-mode",
@@ -168,28 +196,5 @@ func main() {
 
 	copy(buf[1+0x40:], append(preamble, msg...))
 
-	if *dryrun {
-		log.Println("Would have sent:\n" + hex.Dump(buf))
-		return
-	}
-
-	err := hid.Init()
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	dev, err := hid.OpenFirst(0x0bda, 0x1100)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// TODO: get current value and nicely transition to the expected value like in
-	// TODO: read a value if "v" not specified, I think the value is in the byte
-	// 0xa of the response if we do a read
-	_, err = dev.Write(buf)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Print("Property set.")
+	writeData(buf, dryrun)
 }
